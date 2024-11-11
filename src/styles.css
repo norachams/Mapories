@@ -1,0 +1,4 @@
+/* Ensure that no focus outline appears when clicking on a geography */
+.react-simple-maps__geography:focus {
+  outline: none !important;
+}
