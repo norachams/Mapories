@@ -1017,11 +1017,11 @@
           {
             "type": "Polygon",
             "arcs": [
-              [325, 326, 327, 328, 329, 330, 331]
+              [325, 326, 327, 328, 329, 330, 331, -327, 335]
             ],
             "id": "376",
             "properties": {
-              "name": "Israel"
+              "name": "Palestine"
             }
           },
           {
@@ -1042,16 +1042,6 @@
             "id": "450",
             "properties": {
               "name": "Madagascar"
-            }
-          },
-          {
-            "type": "Polygon",
-            "arcs": [
-              [-327, 335]
-            ],
-            "id": "275",
-            "properties": {
-              "name": "Palestine"
             }
           },
           {
