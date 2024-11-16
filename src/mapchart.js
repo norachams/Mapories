@@ -8,6 +8,7 @@ import {
 } from "react-simple-maps";
 import { Text, Box, Input, Button, VStack, HStack } from "@chakra-ui/react"; // Import Chakra UI components
 import Menu from "./menu";
+import ConfirmationDialog from "./modal";
 import citiesData from "./cities500.json";
 
 const TOTAL_COUNTRIES = 195;
@@ -62,7 +63,7 @@ const MapChart = () => {
     ]);
 
 
-      alert(`${selectedCity.name} has been added to your visited cities.`);
+      //alert(`${selectedCity.name} has been added to your visited cities.`);
 
       setSelectedCity(null);
       
@@ -136,6 +137,7 @@ const MapChart = () => {
               size="sm"
               variant="ghost"
               width="100%"
+              p={4}
               justifyContent="flex-start" //hello added this
             >
               {city.name}, {city.country}
@@ -145,33 +147,16 @@ const MapChart = () => {
       </Box>
 
       {/* Confirmation popup */}
-      {selectedCity && (
-        <Box
-          position="fixed"
-          top="50%"
-          left="50%"
-          transform="translate(-50%, -50%)"
-          bg="white"
-          p={4}
-          borderRadius="md"
-          shadow="lg"
-          textAlign="center" 
-          zIndex="1000" //added this too 
-        >
-          <Text mb={4}>Do you want to add {selectedCity.name} to your visited list?</Text>
-          <HStack justify="center">
-            <Button colorScheme="teal" onClick={confirmAddCity}>
-              Yes
-            </Button>
-            <Button onClick={() => setSelectedCity(null)}>Cancel</Button>
-          </HStack>
-        </Box>
-      )}
-
+      <ConfirmationDialog
+        isOpen={!!selectedCity}
+        onClose={() => setSelectedCity(null)}
+        onConfirm={confirmAddCity}
+        cityName={selectedCity?.name}
+      />
       {/* Map */}
       <ComposableMap projection="geoMercator">
         <ZoomableGroup center={[0, 0]} zoom={1}>
-          <Geographies geography="/feature.json">
+          <Geographies geography="/featuress.json">
             {({ geographies }) =>
               geographies.map((geo) => {
                 const countryCode = geo.properties.ISO_A2;
