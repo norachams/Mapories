@@ -2052,6 +2052,7 @@
             "arcs": [
               [-115, -581, -583, 583]
             ],
+            "id": "103",
             "properties": {
               "name": "Somaliland"
             }
@@ -2121,6 +2122,7 @@
             "arcs": [
               [-493, -594, -591, -589]
             ],
+            "id": "101",
             "properties": {
               "name": "Kosovo"
             }
