@@ -10,6 +10,9 @@ import { Text, Box, Input, Button, VStack, HStack } from "@chakra-ui/react"; // 
 import Menu from "./menu";
 import ConfirmationDialog from "./modal";
 import citiesData from "./cities500.json";
+import { geoContains } from 'd3-geo';
+import { feature } from 'topojson-client';
+import mapData from './feature.json'; // Adjust the path as necessary
 
 const TOTAL_COUNTRIES = 195;
 
@@ -25,6 +28,8 @@ const MapChart = () => {
   const [markers, setMarkers] = useState([]);
   const [hoveredMarkerIndex, setHoveredMarkerIndex] = useState(null);
 
+  const geoJsonData = feature(mapData, mapData.objects.countries); // Adjust 'countries' if necessary
+  const countryFeatures = geoJsonData.features;
 
    const handleSearchChange = (event) => {
     const query = event.target.value;
@@ -40,6 +45,7 @@ const MapChart = () => {
     }
   };
 
+
   const handleCitySelect = (city) => {
     setSelectedCity(city);
     setFilteredCities([]);
@@ -52,22 +58,32 @@ const MapChart = () => {
       const latNum = parseFloat(lat);
       const lonNum = parseFloat(lon);
 
-      if (!visitedCountries.includes(country)) {
-        setVisitedCountries((prev) => [...prev, country]);
-      }
+      const cityCoordinates = [lonNum, latNum];
 
-      // Add the city's coordinates to the markers state
+    // Find the country that contains the city
+    const countryFeature = countryFeatures.find((feature) =>
+      geoContains(feature, cityCoordinates)
+    );
+
+    if (countryFeature) {
+      const countryId = countryFeature.id;
+
+      if (!visitedCountries.includes(countryId)) {
+        setVisitedCountries((prev) => [...prev, countryId]);
+      }
+    } else {
+      console.warn('Country not found for the selected city.');
+    }
+
     setMarkers((prevMarkers) => [
       ...prevMarkers,
-      { coordinates: [lonNum, latNum], name: selectedCity.name },
+      { coordinates: cityCoordinates, name: selectedCity.name },
     ]);
 
+    //alert(`${selectedCity.name} has been added to your visited cities.`);
 
-      //alert(`${selectedCity.name} has been added to your visited cities.`);
-
-      setSelectedCity(null);
-      
-    }
+    setSelectedCity(null);
+  }
   };
 
   const handleCountryClick = (geo) => {
@@ -75,8 +91,6 @@ const MapChart = () => {
         prev.includes(geo.id) ? prev.filter((id) => id !== geo.id) : [...prev, geo.id]
       );
     }; 
-
-    
 
 
   const cycleDisplayMode = () => {
@@ -156,7 +170,7 @@ const MapChart = () => {
       {/* Map */}
       <ComposableMap projection="geoMercator">
         <ZoomableGroup center={[0, 0]} zoom={1}>
-          <Geographies geography="/featuress.json">
+          <Geographies geography={mapData}>
             {({ geographies }) =>
               geographies.map((geo) => {
                 const countryCode = geo.properties.ISO_A2;
