@@ -5,19 +5,56 @@ import {
   Geography,
   ZoomableGroup
 } from "react-simple-maps";
+import { Text, Box, Input, Button, VStack, HStack } from "@chakra-ui/react"; // Import Chakra UI components
+import Menu from "./menu";
+import citiesData from "./cities500.json";
 
 const TOTAL_COUNTRIES = 195;
 
+
 const MapChart = () => {
-  // State to store the list of selected countries
+
   const [visitedCountries, setVisitedCountries] = useState([]);
   const [displayMode, setDisplayMode] = useState(0);
   const [hoveredCountry, setHoveredCountry] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filteredCities, setFilteredCities] = useState([]);
+  const [selectedCity, setSelectedCity] = useState(null);
 
-  
-  // Function to handle click on a country
+   
+   const handleSearchChange = (event) => {
+    const query = event.target.value;
+    setSearchQuery(query);
+
+    if (query.length > 0) {
+      const matches = citiesData.filter((city) =>
+        city.name.toLowerCase().includes(query.toLowerCase())
+      );
+      setFilteredCities(matches.slice(0, 10)); 
+    } else {
+      setFilteredCities([]);
+    }
+  };
+
+  const handleCitySelect = (city) => {
+    setSelectedCity(city);
+    setFilteredCities([]);
+    setSearchQuery(city.name);
+  };
+
+  const confirmAddCity = () => {
+    if (selectedCity) {
+      const { country, lat, lon } = selectedCity;
+      if (!visitedCountries.includes(country)) {
+        setVisitedCountries((prev) => [...prev, country]);
+      }
+      setSelectedCity(null);
+      alert(`${selectedCity.name} has been added to your visited cities.`);
+    }
+  };
+
   const handleCountryClick = (geo) => {
-    // Toggle country selection
+    
     setVisitedCountries((prev) =>
       prev.includes(geo.id) ? prev.filter((id) => id !== geo.id) : [...prev, geo.id]
     );
@@ -43,12 +80,77 @@ const MapChart = () => {
 
   return (
     <div>
-        <h2 onClick={cycleDisplayMode} style={{ position: "fixed", top: "10px", width: "100%", textAlign: "center", cursor: "pointer" }}>
-        {calculateDisplayText()}
-      </h2>
+     <Box position="fixed" top="10px" width="100%" textAlign="center">
+        <Text
+          //onClick={cycleDisplayMode}
+          onClick={() => setDisplayMode((prev) => (prev + 1) % 2)}
+          fontSize="2xl"
+          fontWeight="bold"
+          color="teal.500"
+          cursor="pointer"
+          _hover={{ color: "teal.600" }}
+          p={2}
+          
+        >
+          {calculateDisplayText()}
+        </Text>
+      </Box>
+      <Menu />
+      {/* Search bar and dropdown */}
+      <Box position="fixed" top="18px" right="20px" width="200px" borderColor="white" >
+        <Input
+          placeholder="    Search for a city you visted..."
+          value={searchQuery}
+          onChange={handleSearchChange}
+          mb={2}
+          borderColor="white"
+          bg={"white"}
+          borderRadius="sm"
+          shadow={"md"}
+          
+        />
+        <VStack align="start" spacing={1} bg="white" borderRadius="md" shadow="md" maxHeight="200px" overflow="auto">
+          {filteredCities.map((city) => (
+            <Button
+              key={city.id}
+              onClick={() => handleCitySelect(city)}
+              size="sm"
+              variant="ghost"
+              width="100%"
+            >
+              {city.name}, {city.country}
+            </Button>
+          ))}
+        </VStack>
+      </Box>
+
+      {/* Confirmation popup */}
+      {selectedCity && (
+        <Box
+          position="fixed"
+          top="50%"
+          left="50%"
+          transform="translate(-50%, -50%)"
+          bg="white"
+          p={4}
+          borderRadius="md"
+          shadow="lg"
+          textAlign="center"
+        >
+          <Text mb={4}>Do you want to add {selectedCity.name} to your visited list?</Text>
+          <HStack justify="center">
+            <Button colorScheme="teal" onClick={confirmAddCity}>
+              Yes
+            </Button>
+            <Button onClick={() => setSelectedCity(null)}>Cancel</Button>
+          </HStack>
+        </Box>
+      )}
+
+      {/* Map */}
       <ComposableMap projection="geoMercator">
         <ZoomableGroup center={[0, 0]} zoom={1}>
-          <Geographies geography="/features.json">
+          <Geographies geography="/feature.json">
             {({ geographies }) =>
               geographies.map((geo) => {
                 const isSelected = visitedCountries.includes(geo.id); // Check if country is selected
@@ -57,22 +159,22 @@ const MapChart = () => {
                     key={geo.rsmKey}
                     geography={geo}
                     onClick={() => handleCountryClick(geo)}
-                    onMouseEnter={() => setHoveredCountry(geo.properties.name)} // Set country name on hover
-                    onMouseLeave={() => setHoveredCountry("")} // Clear country name on hover out
+                    onMouseEnter={() => setHoveredCountry(geo.properties.name)} 
+                    onMouseLeave={() => setHoveredCountry("")} 
                     style={{
                       default: {
-                        fill: isSelected ? "#C2FABB" : "#EEE", // Color selected countries differently
+                        fill: isSelected ? "#C2FABB" : "#EEE", 
                         stroke: "#FFF", 
                         strokeWidth: 0.5, 
                         outline: "none",
                       },
                       hover: {
-                        fill: isSelected ? "#64E639" : "#F53", // Hover color, but selected countries stay the same
+                        fill: isSelected ? "#64E639" : "#F53", 
                         outline: "none",
                         cursor: "pointer",
                       },
                       pressed: {
-                        fill: "#C2FABB", // Pressed color
+                        fill: "#C2FABB", 
                         outline: "none",
                       },
                     }}
