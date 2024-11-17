@@ -8,11 +8,14 @@ import {
 } from "react-simple-maps";
 import { Text, Box, Input, Button, VStack, HStack } from "@chakra-ui/react"; // Import Chakra UI components
 import Menu from "./menu";
+import { InputGroup } from "./components/ui/input-group"
+
 import ConfirmationDialog from "./modal";
 import citiesData from "./cities500.json";
 import { geoContains } from 'd3-geo';
 import { feature } from 'topojson-client';
 import mapData from './feature.json'; // Adjust the path as necessary
+import { LuSearch } from "react-icons/lu"
 
 const TOTAL_COUNTRIES = 195;
 
@@ -129,7 +132,13 @@ const MapChart = () => {
       </Box>
       <Menu />
       {/* Search bar and dropdown */}
-      <Box position="fixed" top="15px" right="20px" width="250px" borderColor="white" >
+      <Box position="fixed" top="15px" right="20px" width="290px" borderColor="white" >
+       {/*} <InputGroup
+          flex="1"
+          startElement={<LuSearch />}
+          position="center"
+         
+          > */}
         <Input
           placeholder="Search for a city you visted..."
           value={searchQuery}
@@ -138,11 +147,12 @@ const MapChart = () => {
           borderColor="white"
           p={4}
           bg={"white"}
-          borderRadius="sm"
+          borderRadius="2xl"
           shadow={"md"}
           size="lg"
           
         />
+       {/*} </InputGroup>*/}
         <VStack align="start" spacing={3} bg="white" borderRadius="md" shadow="md" maxHeight="200px" overflow="auto">
           {filteredCities.map((city) => (
             <Button
@@ -152,7 +162,7 @@ const MapChart = () => {
               variant="ghost"
               width="100%"
               p={4}
-              justifyContent="flex-start" //hello added this
+              justifyContent="flex-start"
             >
               {city.name}, {city.country}
             </Button>
