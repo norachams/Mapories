@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState ,useEffect}  from "react";
 import {
   ComposableMap,
   Geographies,
@@ -6,16 +6,21 @@ import {
   ZoomableGroup,
   Marker
 } from "react-simple-maps";
-import { Text, Box, Input, Button, VStack, HStack } from "@chakra-ui/react"; // Import Chakra UI components
+import { Text, Box, Input, Button, VStack, HStack } from "@chakra-ui/react";
 import Menu from "./menu";
-import { InputGroup } from "./components/ui/input-group"
 
 import ConfirmationDialog from "./modal";
 import citiesData from "./cities500.json";
 import { geoContains } from 'd3-geo';
 import { feature } from 'topojson-client';
-import mapData from './feature.json'; // Adjust the path as necessary
-import { LuSearch } from "react-icons/lu"
+import mapData from './feature.json'; 
+import PhotoGalleryDialog from "./PhotoGalleryDialog";
+import FileUploadDialog from "./uploadfile";
+import { db,auth } from './firebase';
+import { doc, setDoc, deleteDoc,  } from 'firebase/firestore';
+import { collection,updateDoc, onSnapshot} from 'firebase/firestore'; 
+import { signInAnonymously,onAuthStateChanged } from 'firebase/auth';
+
 
 const TOTAL_COUNTRIES = 195;
 
@@ -30,9 +35,154 @@ const MapChart = () => {
   const [selectedCity, setSelectedCity] = useState(null);
   const [markers, setMarkers] = useState([]);
   const [hoveredMarkerIndex, setHoveredMarkerIndex] = useState(null);
+  const [selectedMarkerIndex, setSelectedMarkerIndex] = useState(null);
+  const [isFileUploadOpen, setIsFileUploadOpen] = useState(false);
+  const [selectedMarkerForUpload, setSelectedMarkerForUpload] = useState(null);
+  const [user, setUser] = useState(null);
 
-  const geoJsonData = feature(mapData, mapData.objects.countries); // Adjust 'countries' if necessary
+  const geoJsonData = feature(mapData, mapData.objects.countries); 
   const countryFeatures = geoJsonData.features;
+
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "markers"), (snapshot) => {
+      const markersData = snapshot.docs.map((doc) => doc.data());
+      setMarkers(markersData);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "countries"), (snapshot) => {
+      const countriesData = snapshot.docs.map((doc) => doc.id);
+      setVisitedCountries(countriesData);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+
+  useEffect(() => {
+    signInAnonymously(auth)
+      .then(() => {
+        console.log("Signed in anonymously");
+      })
+      .catch((error) => {
+        console.error("Error signing in anonymously:", error);
+      });
+  }, []);
+
+  const handleCitySelect = (city) => {
+    setSelectedCity(city);
+    setFilteredCities([]);
+    setSearchQuery("");
+  };
+
+  
+
+  const handleAddPhotos = (marker) => {
+    setSelectedMarkerForUpload(marker);
+    setIsFileUploadOpen(true);
+  };
+
+  const handleCountryClick = (geo) => {
+    setVisitedCountries((prev) => {
+      const updatedCountries = prev.includes(geo.id)
+        ? prev.filter((id) => id !== geo.id)
+        : [...prev, geo.id];
+      console.log("Updated visitedCountries:", updatedCountries);
+
+      const docRef = doc(db, 'countries', geo.id.toString());
+      if (updatedCountries.includes(geo.id)) {
+
+        setDoc(docRef, { id: geo.id })
+          .then(() => {
+            console.log(`Country ${geo.id} added to Firestore`);
+          })
+          .catch((error) => {
+            console.error('Error adding country to Firestore:', error);
+          });
+      } else {
+
+        deleteDoc(docRef)
+          .then(() => {
+            console.log(`Country ${geo.id} removed from Firestore`);
+          })
+          .catch((error) => {
+            console.error('Error removing country from Firestore:', error);
+          });
+      }
+
+      return updatedCountries;
+    });
+  };
+
+
+const confirmAddCity = async (files = []) => {
+  try {
+    console.log('confirmAddCity called with files:', files);
+    if (selectedCity) {
+      const { country, lat, lon } = selectedCity;
+      const latNum = parseFloat(lat);
+      const lonNum = parseFloat(lon);
+      const cityCoordinates = [lonNum, latNum];
+
+      const countryFeature = countryFeatures.find((feature) =>
+        geoContains(feature, cityCoordinates)
+      );
+
+      let countryId = null;
+        if (countryFeature) {
+          countryId = countryFeature.id;
+
+          if (!visitedCountries.includes(countryId)) {
+            setVisitedCountries((prev) => {
+              const updatedCountries = [...prev, countryId];
+
+              // Save the country to Firestore
+              const docRef = doc(db, "countries", countryId.toString());
+              setDoc(docRef, { id: countryId })
+                .then(() => {
+                  console.log(`Country ${countryId} added to Firestore`);
+                })
+                .catch((error) => {
+                  console.error("Error adding country to Firestore:", error);
+                });
+
+              return updatedCountries;
+            });
+          }
+        }
+
+      const markerData = {
+        countryId, 
+        coordinates: cityCoordinates,
+        name: selectedCity.name,
+        //photos: imageUrls,
+      };
+
+      setMarkers((prevMarkers) => [...prevMarkers, markerData]);
+
+      // Save marker data to Firestore
+      try {
+        await setDoc(doc(db, 'markers', selectedCity.name), markerData);
+        console.log('Marker data saved successfully');
+      } catch (error) {
+        console.error('Error saving marker data:', error);
+      }
+
+      setSelectedCity(null);
+    }
+  } catch (error) {
+    console.error('Error in confirmAddCity:', error);
+  }
+};
 
    const handleSearchChange = (event) => {
     const query = event.target.value;
@@ -42,58 +192,15 @@ const MapChart = () => {
       const matches = citiesData.filter((city) =>
         city.name.toLowerCase().includes(query.toLowerCase())
       );
-      setFilteredCities(matches.slice(0, 10)); 
+      setFilteredCities(matches.slice(0, 20)); 
     } else {
       setFilteredCities([]);
     }
   };
 
-
-  const handleCitySelect = (city) => {
-    setSelectedCity(city);
-    setFilteredCities([]);
-    setSearchQuery("");
-  };
-
-  const confirmAddCity = () => {
-    if (selectedCity) {
-      const { country, lat, lon } = selectedCity;
-      const latNum = parseFloat(lat);
-      const lonNum = parseFloat(lon);
-
-      const cityCoordinates = [lonNum, latNum];
-
-    // Find the country that contains the city
-    const countryFeature = countryFeatures.find((feature) =>
-      geoContains(feature, cityCoordinates)
-    );
-
-    if (countryFeature) {
-      const countryId = countryFeature.id;
-
-      if (!visitedCountries.includes(countryId)) {
-        setVisitedCountries((prev) => [...prev, countryId]);
-      }
-    } else {
-      console.warn('Country not found for the selected city.');
-    }
-
-    setMarkers((prevMarkers) => [
-      ...prevMarkers,
-      { coordinates: cityCoordinates, name: selectedCity.name },
-    ]);
-
-    //alert(`${selectedCity.name} has been added to your visited cities.`);
-
-    setSelectedCity(null);
-  }
-  };
-
-  const handleCountryClick = (geo) => {
-      setVisitedCountries((prev) =>
-        prev.includes(geo.id) ? prev.filter((id) => id !== geo.id) : [...prev, geo.id]
-      );
-    }; 
+  const handleMarkerClick = (index) => {
+  setSelectedMarkerIndex(index);
+};
 
 
   const cycleDisplayMode = () => {
@@ -114,6 +221,29 @@ const MapChart = () => {
     }
   };
 
+  
+  const handleFileUploadSubmit = async (files) => {
+    if (files.length > 0) {
+      try {
+        const updatedMarkers = markers.map((m) => {
+          if (m.name === selectedMarkerForUpload.name) {
+            const updatedPhotos = [...(m.photos || []), ...files];
+            updateDoc(doc(db, 'markers', m.name), { photos: updatedPhotos });
+            return { ...m, photos: updatedPhotos };
+          }
+          return m;
+        });
+  
+        setMarkers(updatedMarkers);
+      } catch (error) {
+        console.error('Error updating marker with new photos: ', error);
+      }
+    }
+  
+    setIsFileUploadOpen(false);
+    setSelectedMarkerForUpload(null);
+  };
+  
   return (
     <div>
      <Box position="fixed" top="10px" width="100%" textAlign="center">
@@ -152,7 +282,7 @@ const MapChart = () => {
           size="lg"
           
         />
-       {/*} </InputGroup>*/}
+       {/* </InputGroup>*/}
         <VStack align="start" spacing={3} bg="white" borderRadius="md" shadow="md" maxHeight="200px" overflow="auto">
           {filteredCities.map((city) => (
             <Button
@@ -172,19 +302,20 @@ const MapChart = () => {
 
       {/* Confirmation popup */}
       <ConfirmationDialog
-        isOpen={!!selectedCity}
-        onClose={() => setSelectedCity(null)}
-        onConfirm={confirmAddCity}
-        cityName={selectedCity?.name}
-      />
+      isOpen={!!selectedCity}
+      onClose={() => setSelectedCity(null)}
+      onConfirm={confirmAddCity}
+      onConfirmWithFiles={confirmAddCity} 
+      cityName={selectedCity?.name}
+    />
       {/* Map */}
       <ComposableMap projection="geoMercator">
         <ZoomableGroup center={[0, 0]} zoom={1}>
           <Geographies geography={mapData}>
             {({ geographies }) =>
               geographies.map((geo) => {
-                const countryCode = geo.properties.ISO_A2;
-                const isSelected = visitedCountries.includes(geo.id); // Check if country is selected
+                
+                const isSelected = visitedCountries.includes(geo.id);
                 return (
                   <Geography
                     key={geo.rsmKey}
@@ -217,7 +348,7 @@ const MapChart = () => {
 
       {markers.map((marker, i) => (
       <Marker key={i} coordinates={marker.coordinates} onMouseEnter={() => setHoveredMarkerIndex(i)}
-      onMouseLeave={() => setHoveredMarkerIndex(null)}>
+      onMouseLeave={() => setHoveredMarkerIndex(null)}  onClick={() => handleMarkerClick(i)} >
         <circle r={0.5} fill="#42C4DB"  />
         {hoveredMarkerIndex === i && (
         <text
@@ -235,6 +366,30 @@ const MapChart = () => {
     ))}
         </ZoomableGroup>
       </ComposableMap>
+
+    {/* Photo Gallery Dialog */}
+    {selectedMarkerIndex !== null && (
+  <PhotoGalleryDialog
+    isOpen={true}
+    onClose={() => setSelectedMarkerIndex(null)}
+    marker={markers[selectedMarkerIndex]}
+    //onDeletePhoto={handleDeletePhoto}
+    onAddPhotos={handleAddPhotos}
+  />
+)}
+
+
+    {/* File Upload Dialog for adding photos to existing markers */}
+    {isFileUploadOpen && selectedMarkerForUpload && (
+        <FileUploadDialog
+          isOpen={isFileUploadOpen}
+          onClose={() => {
+            setIsFileUploadOpen(false);
+            setSelectedMarkerForUpload(null);
+          }}
+          onSubmit={handleFileUploadSubmit}
+        />
+      )}
 
       {/* Hover Box at Bottom Left */}
       {hoveredCountry && (
