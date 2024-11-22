@@ -6,23 +6,32 @@ import {
   DialogContent,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
   DialogRoot,
-  DialogTrigger,
 } from "./components/ui/dialog";
 import { Button } from "./components/ui/button";
 import FileUploadDialog from "./uploadfile"
 
 
-const ConfirmationDialog = ({ isOpen, onClose, onConfirm, cityName }) => {
+const ConfirmationDialog = ({ isOpen, onClose, onConfirm, onConfirmWithFiles,cityName }) => {
   
   const [isFileUploadOpen, setIsFileUploadOpen] = useState(false);
 
   const handleAddPhotos = () => {
-    onConfirm();
     setIsFileUploadOpen(true); 
-    onClose(); 
+    //onConfirm();
+    //onClose(); 
   };
+
+  const handleFileUploadSubmit = (files) => {
+    if (onConfirmWithFiles) {
+      onConfirmWithFiles(files);
+    } else {
+      console.error("onConfirmWithFiles is not defined.");
+    }
+    setIsFileUploadOpen(false);
+    onClose();
+  };
+  
 
   return (
     <>
@@ -34,11 +43,14 @@ const ConfirmationDialog = ({ isOpen, onClose, onConfirm, cityName }) => {
           <p>Did you visit {cityName} and want to add to your visited list?</p>
         </DialogBody>
         <DialogFooter>
-          <DialogActionTrigger asChild>
-            <Button onClick={onConfirm} backgroundColor="#EEEE" padding="12px" >
+          {/*<DialogActionTrigger asChild>*/}
+            <Button  onClick={() => {
+            onConfirm();
+            onClose();
+          }} backgroundColor="#EEEE" padding="12px" >
               Yes
             </Button>
-          </DialogActionTrigger>
+          {/*</DialogActionTrigger>*/}
           <Button onClick={handleAddPhotos} backgroundColor="teal" color="white" padding="8px" >
               Yes, Add Photos
             </Button>
@@ -46,15 +58,18 @@ const ConfirmationDialog = ({ isOpen, onClose, onConfirm, cityName }) => {
             Cancel
           </Button>
         </DialogFooter>
-        <DialogCloseTrigger/>
+        {/*<DialogCloseTrigger/>*/}
       </DialogContent>
     </DialogRoot>
 
     {/* File Upload Dialog */}
-    <FileUploadDialog
-        isOpen={isFileUploadOpen}
-        onClose={() => setIsFileUploadOpen(false)}
-      />
+    {isFileUploadOpen && (
+        <FileUploadDialog
+          isOpen={isFileUploadOpen}
+          onClose={() => setIsFileUploadOpen(false)}
+          onSubmit={handleFileUploadSubmit}
+        />
+      )}
     </>
   );
 };
